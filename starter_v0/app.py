@@ -403,11 +403,11 @@ def choose_artifact_file(
         st.warning(f"No {label.lower()} files found in artifacts/.")
         return default_path
 
-    selected = st.selectbox(
+    selected = st.radio(
         label,
         options,
         index=default_index(options, default_path),
-        format_func=display_path,
+        format_func=lambda path: path.name,
         key=custom_key,
     )
     render_artifact_file_card(selected, label=selected.name)
@@ -702,7 +702,11 @@ def main() -> None:
         st.header("Run Settings")
         provider_name = st.selectbox("Provider", PROVIDER_ORDER, index=default_provider_index())
         model = st.text_input("Model override", value="", placeholder="Leave empty for provider default")
-        version_choice = st.selectbox("Artifact version", ["v3", "v2", "v1", "v0", "custom"])
+        version_choice = st.radio(
+            "Artifact version",
+            ["v3", "v2", "v1", "v0", "custom"],
+            horizontal=True,
+        )
         version = (
             st.text_input("Custom version", value="v3")
             if version_choice == "custom"
