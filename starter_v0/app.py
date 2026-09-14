@@ -27,6 +27,7 @@ DEFAULT_SYSTEM_PROMPT = ARTIFACTS_DIR / "system_prompt.md"
 DEFAULT_TOOLS = ARTIFACTS_DIR / "tools.yaml"
 DEFAULT_SYSTEM_PROMPT_DISPLAY = "artifacts/system_prompt.md"
 DEFAULT_TOOLS_DISPLAY = "artifacts/tools.yaml"
+ARTIFACT_VERSION_CHOICES = ["v3"]
 
 PROVIDER_ENV_VARS = {
     "openrouter": "OPENROUTER_API_KEY",
@@ -704,19 +705,15 @@ def main() -> None:
         model = st.text_input("Model override", value="", placeholder="Leave empty for provider default")
         version_choice = st.radio(
             "Artifact version",
-            ["v3", "v2", "v1", "v0", "custom"],
+            ARTIFACT_VERSION_CHOICES,
             horizontal=True,
         )
-        version = (
-            st.text_input("Custom version", value="v3")
-            if version_choice == "custom"
-            else version_choice
-        )
+        version = version_choice
 
         st.subheader("Artifact files")
         custom_paths = st.toggle("Custom paths", value=False)
-        prompt_options = artifact_options(("system_prompt*.md", "*.prompt.md", "prompts/*.md"))
-        tools_options = artifact_options(("tools*.yaml", "tools*.yml"))
+        prompt_options = [DEFAULT_SYSTEM_PROMPT]
+        tools_options = [DEFAULT_TOOLS]
         system_prompt_path = choose_artifact_file(
             label="System prompt",
             options=prompt_options,
