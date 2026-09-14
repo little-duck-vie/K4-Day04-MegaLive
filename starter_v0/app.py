@@ -236,6 +236,28 @@ APP_CSS = """
   overflow-wrap: anywhere;
 }
 
+.artifact-file-card {
+  border: 1px solid var(--lab-line);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: .65rem .75rem;
+  margin: .35rem 0 .8rem;
+}
+
+.artifact-file-name {
+  color: var(--lab-ink);
+  font-size: .88rem;
+  font-weight: 720;
+  overflow-wrap: anywhere;
+}
+
+.artifact-file-path {
+  color: var(--lab-muted);
+  font-size: .75rem;
+  margin-top: .18rem;
+  overflow-wrap: anywhere;
+}
+
 div[data-testid="stChatInput"] textarea {
   border-radius: 8px;
 }
@@ -292,6 +314,22 @@ def display_path(path: Path) -> str:
         return path.name
 
 
+def artifact_options(patterns: tuple[str, ...]) -> list[Path]:
+    paths: list[Path] = []
+    for pattern in patterns:
+        paths.extend(ARTIFACTS_DIR.glob(pattern))
+    unique = sorted({path.resolve() for path in paths if path.is_file()})
+    return [Path(path) for path in unique]
+
+
+def default_index(options: list[Path], default_path: Path) -> int:
+    default_resolved = default_path.resolve()
+    for index, option in enumerate(options):
+        if option.resolve() == default_resolved:
+            return index
+    return 0
+
+
 def short_value(value: str | None, *, length: int = 18) -> str:
     if not value:
         return "-"
@@ -335,6 +373,45 @@ def render_path_card(path: Path, *, title: str, meta: str | None = None) -> None
         """,
         unsafe_allow_html=True,
     )
+
+
+def render_artifact_file_card(path: Path, *, label: str) -> None:
+    st.markdown(
+        f"""
+        <div class="artifact-file-card">
+          <div class="artifact-file-name">{escape(label)}</div>
+          <div class="artifact-file-path">{escape(display_path(path))}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def choose_artifact_file(
+    *,
+    label: str,
+    options: list[Path],
+    default_path: Path,
+    custom_key: str,
+    custom_enabled: bool,
+) -> Path:
+    if custom_enabled:
+        raw_path = st.text_input(label, value=display_path(default_path), key=custom_key)
+        return resolve_lab_path(raw_path)
+
+    if not options:
+        st.warning(f"No {label.lower()} files found in artifacts/.")
+        return default_path
+
+    selected = st.selectbox(
+        label,
+        options,
+        index=default_index(options, default_path),
+        format_func=display_path,
+        key=custom_key,
+    )
+    render_artifact_file_card(selected, label=selected.name)
+    return selected
 
 
 def render_assistant_text(text: str | None, *, show_raw: bool) -> None:
@@ -625,11 +702,31 @@ def main() -> None:
         st.header("Run Settings")
         provider_name = st.selectbox("Provider", PROVIDER_ORDER, index=default_provider_index())
         model = st.text_input("Model override", value="", placeholder="Leave empty for provider default")
-        version = st.text_input("Artifact version", value="v3")
-        system_prompt_input = st.text_input("System prompt", value=DEFAULT_SYSTEM_PROMPT_DISPLAY)
-        tools_input = st.text_input("Tools YAML", value=DEFAULT_TOOLS_DISPLAY)
-        system_prompt_path = resolve_lab_path(system_prompt_input)
-        tools_path = resolve_lab_path(tools_input)
+        version_choice = st.selectbox("Artifact version", ["v3", "v2", "v1", "v0", "custom"])
+        version = (
+            st.text_input("Custom version", value="v3")
+            if version_choice == "custom"
+            else version_choice
+        )
+
+        st.subheader("Artifact files")
+        custom_paths = st.toggle("Custom paths", value=False)
+        prompt_options = artifact_options(("system_prompt*.md", "*.prompt.md", "prompts/*.md"))
+        tools_options = artifact_options(("tools*.yaml", "tools*.yml"))
+        system_prompt_path = choose_artifact_file(
+            label="System prompt",
+            options=prompt_options,
+            default_path=DEFAULT_SYSTEM_PROMPT,
+            custom_key="system_prompt_path",
+            custom_enabled=custom_paths,
+        )
+        tools_path = choose_artifact_file(
+            label="Tools YAML",
+            options=tools_options,
+            default_path=DEFAULT_TOOLS,
+            custom_key="tools_path",
+            custom_enabled=custom_paths,
+        )
         history_window = st.number_input("History window", min_value=0, max_value=20, value=5, step=1)
         max_tool_rounds = st.number_input("Max tool rounds", min_value=1, max_value=10, value=4, step=1)
 
