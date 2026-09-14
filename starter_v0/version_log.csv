@@ -1,0 +1,4 @@
+Version,Hypothesis,Metric,Run File,Prompt Hash,Tools Hash
+v0,Baseline - starter prompt chưa tối ưu,,,original,original
+v1,Cải tiến system_prompt: thêm tool routing table + context carry-over + confirmation boundaries + security rules + adversarial defenses + JSON format rõ ràng,,, 25e75f91a56a,eb3e2243f237
+v2,Tinh chỉnh system_prompt theo yêu cầu: phân biệt KB/Policy + giới hạn scope carry-over + xử lý lỗi tool/kết quả trống + nâng cấp security rule (bảo vệ credentials và unverifiable claims) + clarify evidence_ids,,, 4892d36bc3dc,eb3e2243f237
