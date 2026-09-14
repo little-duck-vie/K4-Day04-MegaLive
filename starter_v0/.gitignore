@@ -9,3 +9,7 @@ __pycache__/
 /runs/
 /transcripts/
 /analysis/
+!/runs/
+!/runs/*.json
+!/transcripts/
+!/transcripts/*.transcript.json
