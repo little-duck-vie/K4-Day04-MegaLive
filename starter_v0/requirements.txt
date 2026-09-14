@@ -4,5 +4,7 @@ anthropic>=0.34.0
 google-genai>=0.8.0
 # Local helpdesk tools and declarations:
 PyYAML>=6.0
+# Live chat UI:
+streamlit>=1.30.0
 # Optional external device search:
 requests>=2.31.0
