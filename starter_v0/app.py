@@ -204,6 +204,38 @@ APP_CSS = """
   overflow-wrap: anywhere;
 }
 
+.assistant-answer {
+  border: 1px solid var(--lab-line);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: .95rem 1rem;
+  margin: .1rem 0 .55rem;
+}
+
+.assistant-reply {
+  color: var(--lab-ink);
+  font-size: 1rem;
+  line-height: 1.6;
+  margin-bottom: .75rem;
+}
+
+.meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+}
+
+.meta-chip {
+  border: 1px solid #c9d4e5;
+  border-radius: 999px;
+  background: #f6f8fb;
+  color: #344054;
+  font-size: .76rem;
+  padding: .22rem .55rem;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
 div[data-testid="stChatInput"] textarea {
   border-radius: 8px;
 }
@@ -227,6 +259,23 @@ div[data-testid="stExpander"] {
 
 def json_block(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, indent=2, default=str)
+
+
+def parse_assistant_payload(text: str | None) -> dict[str, Any] | None:
+    if not text:
+        return None
+    raw = text.strip()
+    if raw.startswith("```"):
+        raw = raw.strip("`")
+        if raw.lower().startswith("json"):
+            raw = raw[4:].strip()
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(payload, dict) or "reply" not in payload:
+        return None
+    return payload
 
 
 def resolve_lab_path(value: str | Path) -> Path:
@@ -286,6 +335,35 @@ def render_path_card(path: Path, *, title: str, meta: str | None = None) -> None
         """,
         unsafe_allow_html=True,
     )
+
+
+def render_assistant_text(text: str | None, *, show_raw: bool) -> None:
+    payload = parse_assistant_payload(text)
+    if payload is None:
+        st.write(text or "")
+        return
+
+    reply = str(payload.get("reply") or "")
+    intent = str(payload.get("intent") or "unknown")
+    action = str(payload.get("action") or "unknown")
+    evidence = payload.get("evidence_ids") or []
+    evidence_text = ", ".join(str(item) for item in evidence) if evidence else "none"
+    st.markdown(
+        f"""
+        <div class="assistant-answer">
+          <div class="assistant-reply">{escape(reply)}</div>
+          <div class="meta-row">
+            <span class="meta-chip">intent: {escape(intent)}</span>
+            <span class="meta-chip">action: {escape(action)}</span>
+            <span class="meta-chip">evidence: {escape(evidence_text)}</span>
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    if show_raw:
+        with st.expander("Raw assistant JSON"):
+            st.code(json_block(payload), language="json")
 
 
 def init_state() -> None:
@@ -389,7 +467,7 @@ def render_rounds(turns: list[dict[str, Any]]) -> None:
             st.markdown("**User**")
             st.write(turn.get("user", ""))
             st.markdown("**Assistant**")
-            st.write(turn.get("assistant_text") or "")
+            render_assistant_text(turn.get("assistant_text"), show_raw=True)
 
             rounds = turn.get("rounds") or []
             if not rounds:
@@ -585,7 +663,10 @@ def main() -> None:
         st.subheader("Chat")
         for item in st.session_state.messages:
             with st.chat_message(item["role"]):
-                st.write(item["content"])
+                if item["role"] == "assistant":
+                    render_assistant_text(item["content"], show_raw=False)
+                else:
+                    st.write(item["content"])
 
         pending_prompt = st.session_state.pop("pending_prompt", None)
         user_text = st.chat_input("Ask the helpdesk agent...")
