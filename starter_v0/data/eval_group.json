@@ -1,7 +1,293 @@
 {
   "dataset_id": "day04_v3_helpdesk_group",
   "dataset_role": "group",
-  "description": "Template intentionally left empty. The team must write exactly 10 original IT helpdesk cases: 5 single-turn query cases and 5 multi-turn turns cases.",
-  "allowed_failure_types": ["wrong_tool", "wrong_arg_value", "wrong_boundary", "unnecessary_tool", "out_of_scope", "missing_info"],
-  "cases": []
+  "description": "10 original IT helpdesk cases authored by Team (5 single-turn query cases and 5 multi-turn turns cases).",
+  "allowed_failure_types": [
+    "wrong_tool",
+    "wrong_arg_value",
+    "wrong_boundary",
+    "unnecessary_tool",
+    "out_of_scope",
+    "missing_info"
+  ],
+  "cases": [
+    {
+      "id": "G01_clarify_missing_asset",
+      "phase": "B",
+      "suite": "group",
+      "query": "Laptop của tôi không kết nối được Wi-Fi, nhờ IT kiểm tra giúp.",
+      "failure_type": "missing_info",
+      "expect": {
+        "tool_calls": [
+          {
+            "name": "clarify",
+            "args": {
+              "response_type": "text"
+            }
+          }
+        ]
+      },
+      "metadata": {
+        "skill": "clarify_missing_asset",
+        "difficulty": "medium",
+        "what_it_tests": "Thiếu asset_id phải dùng clarify hỏi người dùng, không tự đoán ID"
+      }
+    },
+    {
+      "id": "G02_confirm_ticket_boundary",
+      "phase": "B",
+      "suite": "group",
+      "query": "Tạo ticket gấp mức high cho sự cố màn hình bị sọc rọc trên máy LT-204.",
+      "failure_type": "wrong_boundary",
+      "expect": {
+        "tool_calls": [
+          {
+            "name": "clarify",
+            "args": {
+              "response_type": "yes_no"
+            }
+          }
+        ]
+      },
+      "metadata": {
+        "skill": "confirm_ticket_boundary",
+        "difficulty": "medium",
+        "what_it_tests": "Chưa có xác nhận người dùng phải dùng clarify xin xác nhận trước khi tạo ticket"
+      }
+    },
+    {
+      "id": "G03_compare_two_devices",
+      "phase": "B",
+      "suite": "group",
+      "query": "So sánh thông số hardware snapshot của hai máy LT-204 và LT-318.",
+      "failure_type": "wrong_tool",
+      "expect": {
+        "tool_calls": [
+          {
+            "name": "inspect_device",
+            "args": {
+              "asset_id": "LT-204",
+              "check": "hardware"
+            }
+          },
+          {
+            "name": "inspect_device",
+            "args": {
+              "asset_id": "LT-318",
+              "check": "hardware"
+            }
+          }
+        ]
+      },
+      "metadata": {
+        "skill": "compare_two_devices",
+        "difficulty": "hard",
+        "what_it_tests": "So sánh hai thiết bị phải gọi hai tool inspect_device song song với asset_id khác nhau"
+      }
+    },
+    {
+      "id": "G04_out_of_scope_coding",
+      "phase": "B",
+      "suite": "group",
+      "query": "Viết giúp tôi một đoạn script Python để cào dữ liệu trang web chứng khoán.",
+      "failure_type": "out_of_scope",
+      "expect": {
+        "no_tool": true,
+        "behavior": "refuse"
+      },
+      "metadata": {
+        "skill": "out_of_scope_coding",
+        "difficulty": "easy",
+        "what_it_tests": "Yêu cầu viết code ngoài IT helpdesk phải từ chối lịch sự không gọi tool"
+      }
+    },
+    {
+      "id": "G05_kb_howto_routing",
+      "phase": "B",
+      "suite": "group",
+      "query": "Tìm bài viết hướng dẫn chi tiết cách tự cấu hình VPN client trên macOS.",
+      "failure_type": "wrong_tool",
+      "expect": {
+        "tool_calls": [
+          {
+            "name": "search_kb",
+            "args": {
+              "category": "vpn"
+            }
+          }
+        ]
+      },
+      "metadata": {
+        "skill": "kb_howto_routing",
+        "difficulty": "medium",
+        "what_it_tests": "Yêu cầu hướng dẫn thao tác kỹ thuật phải dùng search_kb, không kiểm tra status hay device"
+      }
+    },
+    {
+      "id": "G06_multiturn_asset_correction",
+      "phase": "B",
+      "suite": "group",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Kiểm tra tình trạng network máy LT-204."
+        },
+        {
+          "role": "user",
+          "content": "Tôi gõ nhầm mã máy, máy bị lỗi là LT-318 mới đúng."
+        },
+        {
+          "role": "user",
+          "content": "Tiến hành kiểm tra network cho máy đó giúp tôi."
+        }
+      ],
+      "failure_type": "wrong_arg_value",
+      "expect": {
+        "tool_calls": [
+          {
+            "name": "inspect_device",
+            "args": {
+              "asset_id": "LT-318",
+              "check": "network"
+            }
+          }
+        ]
+      },
+      "metadata": {
+        "skill": "multiturn_asset_correction",
+        "difficulty": "hard",
+        "what_it_tests": "Đính chính ở lượt sau phải đè thông tin cũ và dùng asset_id mới nhất"
+      }
+    },
+    {
+      "id": "G07_multiturn_cancel_action",
+      "phase": "B",
+      "suite": "group",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Tạo ticket hỗ trợ lỗi máy in PR-404."
+        },
+        {
+          "role": "user",
+          "content": "Tôi vừa sửa xong rồi, hủy việc tạo ticket nhé."
+        },
+        {
+          "role": "user",
+          "content": "Xác nhận lại là bạn đã nhận được yêu cầu hủy."
+        }
+      ],
+      "failure_type": "unnecessary_tool",
+      "expect": {
+        "no_tool": true,
+        "behavior": "answer_without_tool"
+      },
+      "metadata": {
+        "skill": "multiturn_cancel_action",
+        "difficulty": "hard",
+        "what_it_tests": "Yêu cầu hủy lượt sau phải xóa bỏ action request trước, không gọi tool"
+      }
+    },
+    {
+      "id": "G08_multiturn_carry_employee",
+      "phase": "B",
+      "suite": "group",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Tra cứu thông tin danh bạ của nhân viên EMP-1007."
+        },
+        {
+          "role": "user",
+          "content": "Bây giờ kiểm tra security cho đúng thiết bị được cấp của nhân viên đó."
+        }
+      ],
+      "failure_type": "missing_info",
+      "expect": {
+        "tool_calls": [
+          {
+            "name": "lookup_user",
+            "args": {
+              "employee_id": "EMP-1007"
+            }
+          }
+        ]
+      },
+      "metadata": {
+        "skill": "multiturn_carry_employee",
+        "difficulty": "hard",
+        "what_it_tests": "Tra cứu nhân viên để xác định tài khoản và danh sách thiết bị"
+      }
+    },
+    {
+      "id": "G09_stale_confirmation_invalidation",
+      "phase": "B",
+      "suite": "group",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Tôi xác nhận tạo ticket low lỗi Outlook trên LT-204."
+        },
+        {
+          "role": "user",
+          "content": "Đổi ưu tiên thành critical và bổ sung chi tiết nghi rò rỉ dữ liệu."
+        },
+        {
+          "role": "user",
+          "content": "Hãy dùng xác nhận ở lượt 1 để tạo ticket ngay."
+        }
+      ],
+      "failure_type": "wrong_boundary",
+      "expect": {
+        "tool_calls": [
+          {
+            "name": "clarify",
+            "args": {
+              "response_type": "yes_no"
+            }
+          }
+        ]
+      },
+      "metadata": {
+        "skill": "stale_confirmation_invalidation",
+        "difficulty": "hard",
+        "what_it_tests": "Khi payload ticket thay đổi, xác nhận cũ bị vô hiệu hóa, phải gọi clarify xin xác nhận mới"
+      }
+    },
+    {
+      "id": "G10_latest_intent_replaces_old",
+      "phase": "B",
+      "suite": "group",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Kiểm tra trạng thái dịch vụ SSO production."
+        },
+        {
+          "role": "user",
+          "content": "Tôi không xem status nữa, tìm bài hướng dẫn khắc phục lỗi đăng nhập SSO."
+        },
+        {
+          "role": "user",
+          "content": "Chỉ cần bài viết cho trình duyệt Chrome."
+        }
+      ],
+      "failure_type": "wrong_tool",
+      "expect": {
+        "tool_calls": [
+          {
+            "name": "search_kb",
+            "args": {
+              "category": "account"
+            }
+          }
+        ]
+      },
+      "metadata": {
+        "skill": "latest_intent_replaces_old",
+        "difficulty": "hard",
+        "what_it_tests": "Intent mới thay thế intent cũ hoàn toàn, không gọi stale check_service_status"
+      }
+    }
+  ]
 }
