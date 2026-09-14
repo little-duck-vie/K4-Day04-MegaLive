@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from html import escape
 import json
 import os
 from pathlib import Path
@@ -24,6 +25,8 @@ from versioning import artifact_version_dict, build_artifact_version
 TRANSCRIPTS_DIR = ROOT / "transcripts"
 DEFAULT_SYSTEM_PROMPT = ARTIFACTS_DIR / "system_prompt.md"
 DEFAULT_TOOLS = ARTIFACTS_DIR / "tools.yaml"
+DEFAULT_SYSTEM_PROMPT_DISPLAY = "artifacts/system_prompt.md"
+DEFAULT_TOOLS_DISPLAY = "artifacts/tools.yaml"
 
 PROVIDER_ENV_VARS = {
     "openrouter": "OPENROUTER_API_KEY",
@@ -31,6 +34,7 @@ PROVIDER_ENV_VARS = {
     "anthropic": "ANTHROPIC_API_KEY",
     "gemini": "GEMINI_API_KEY",
 }
+PROVIDER_ORDER = ["openrouter", "openai", "anthropic", "gemini"]
 
 DEMO_SCENARIOS = [
     {
@@ -178,6 +182,28 @@ APP_CSS = """
   font-size: .82rem;
 }
 
+.path-card {
+  border: 1px solid var(--lab-line);
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: .85rem .95rem;
+  margin: .25rem 0 .75rem;
+}
+
+.path-card-name {
+  color: var(--lab-ink);
+  font-size: .95rem;
+  font-weight: 720;
+  overflow-wrap: anywhere;
+}
+
+.path-card-meta {
+  color: var(--lab-muted);
+  font-size: .78rem;
+  margin-top: .22rem;
+  overflow-wrap: anywhere;
+}
+
 div[data-testid="stChatInput"] textarea {
   border-radius: 8px;
 }
@@ -203,6 +229,20 @@ def json_block(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, indent=2, default=str)
 
 
+def resolve_lab_path(value: str | Path) -> Path:
+    path = Path(value).expanduser()
+    if path.is_absolute():
+        return path
+    return ROOT / path
+
+
+def display_path(path: Path) -> str:
+    try:
+        return path.resolve().relative_to(ROOT.resolve()).as_posix()
+    except ValueError:
+        return path.name
+
+
 def short_value(value: str | None, *, length: int = 18) -> str:
     if not value:
         return "-"
@@ -218,12 +258,34 @@ def provider_key_status(provider_name: str) -> tuple[str, str]:
     return env_var, "missing"
 
 
+def default_provider_index() -> int:
+    for index, provider_name in enumerate(PROVIDER_ORDER):
+        if os.getenv(PROVIDER_ENV_VARS[provider_name]):
+            return index
+    return 0
+
+
 def count_tool_calls(turns: list[dict[str, Any]]) -> int:
     total = 0
     for turn in turns:
         for round_item in turn.get("rounds") or []:
             total += len(round_item.get("tool_calls") or [])
     return total
+
+
+def render_path_card(path: Path, *, title: str, meta: str | None = None) -> None:
+    shown = display_path(path)
+    detail = meta or path.parent.name
+    st.markdown(
+        f"""
+        <div class="path-card">
+          <div class="path-card-name">{escape(title)}</div>
+          <div class="path-card-meta">{escape(shown)}</div>
+          <div class="path-card-meta">{escape(detail)}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def init_state() -> None:
@@ -483,11 +545,13 @@ def main() -> None:
 
     with st.sidebar:
         st.header("Run Settings")
-        provider_name = st.selectbox("Provider", ["openrouter", "openai", "anthropic", "gemini"])
+        provider_name = st.selectbox("Provider", PROVIDER_ORDER, index=default_provider_index())
         model = st.text_input("Model override", value="", placeholder="Leave empty for provider default")
         version = st.text_input("Artifact version", value="v3")
-        system_prompt_path = Path(st.text_input("System prompt", value=str(DEFAULT_SYSTEM_PROMPT)))
-        tools_path = Path(st.text_input("Tools YAML", value=str(DEFAULT_TOOLS)))
+        system_prompt_input = st.text_input("System prompt", value=DEFAULT_SYSTEM_PROMPT_DISPLAY)
+        tools_input = st.text_input("Tools YAML", value=DEFAULT_TOOLS_DISPLAY)
+        system_prompt_path = resolve_lab_path(system_prompt_input)
+        tools_path = resolve_lab_path(tools_input)
         history_window = st.number_input("History window", min_value=0, max_value=20, value=5, step=1)
         max_tool_rounds = st.number_input("Max tool rounds", min_value=1, max_value=10, value=4, step=1)
 
@@ -558,15 +622,21 @@ def main() -> None:
             unsafe_allow_html=True,
         )
         if st.session_state.transcript_path:
-            st.caption("Transcript")
-            st.code(str(st.session_state.transcript_path), language="text")
+            transcript_path = Path(st.session_state.transcript_path)
+            render_path_card(
+                transcript_path,
+                title=transcript_path.name,
+                meta="Saved transcript evidence",
+            )
             st.download_button(
                 "Download transcript",
                 data=json_block(st.session_state.transcript),
-                file_name=Path(st.session_state.transcript_path).name,
+                file_name=transcript_path.name,
                 mime="application/json",
                 use_container_width=True,
             )
+            with st.expander("Local file details"):
+                st.code(str(transcript_path), language="text")
         else:
             st.caption("Transcript will be created on the first user turn.")
 
